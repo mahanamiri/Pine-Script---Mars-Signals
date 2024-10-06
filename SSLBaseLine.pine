@@ -1,0 +1,101 @@
+//@version=5
+indicator('Advanced Trend Signal with SSL Baseline', overlay=true)
+
+// Input parameters
+maType = input.string(title='Baseline Type', defval='HMA', options=['SMA', 'EMA', 'HMA', 'WMA', 'DEMA', 'TEMA', 'LSMA', 'TMA', 'Kijun', 'McGinley'])
+maLength = input.int(title='Baseline Length', defval=55)
+
+// Moving Average function
+ma(type, src, len) =>
+    float result = 0.0
+    if type == 'SMA'
+        result := ta.sma(src, len)
+    else if type == 'EMA'
+        result := ta.ema(src, len)
+    else if type == 'HMA'
+        len2 = int(math.round(len / 2))
+        sqrtLen = int(math.round(math.sqrt(len)))
+        wma1 = ta.wma(src, len2)
+        wma2 = ta.wma(src, len)
+        result := ta.wma(2 * wma1 - wma2, sqrtLen)
+    else if type == 'WMA'
+        result := ta.wma(src, len)
+    else if type == 'DEMA'
+        ema1 = ta.ema(src, len)
+        ema2 = ta.ema(ema1, len)
+        result := 2 * ema1 - ema2
+    else if type == 'TEMA'
+        ema1 = ta.ema(src, len)
+        ema2 = ta.ema(ema1, len)
+        ema3 = ta.ema(ema2, len)
+        result := 3 * (ema1 - ema2) + ema3
+    else if type == 'LSMA'
+        result := ta.linreg(src, len, 0)
+    else if type == 'TMA'
+        sma1 = ta.sma(src, len)
+        result := ta.sma(sma1, len)
+    else if type == 'Kijun'
+        result := (ta.highest(high, len) + ta.lowest(low, len)) / 2
+    else if type == 'McGinley'
+        mg = 0.0
+        mg := na(mg[1]) ? src : mg[1] + (src - mg[1]) / (len * math.pow(src / mg[1], 4))
+        result := mg
+    result
+
+// Compute the Baseline
+baseline = ma(maType, close, maLength)
+
+// Compute the Signal Line
+emaHigh = ma(maType, high, maLength)
+emaLow = ma(maType, low, maLength)
+
+var int hlv = 0
+hlv := close > emaHigh ? 1 : close < emaLow ? -1 : hlv[1]
+signalLine = hlv < 0 ? emaHigh : emaLow
+
+// Generate BUY and SELL signals
+buySignal = ta.crossover(close, signalLine)
+sellSignal = ta.crossunder(close, signalLine)
+
+// Plot the Baseline
+plot(baseline, color=color.orange, linewidth=2, title='MA Baseline')  // حذف display=display.status_line
+
+// Plot the Signal Line with colors
+signalLineColor = hlv < 0 ? color.blue : color.red
+plot(signalLine, color=signalLineColor, linewidth=2, title='Signal Line')  // حذف display=display.status_line
+
+// Plot BUY and SELL signals with labels
+plotshape(buySignal, title='Buy Signal', text='BUY', style=shape.labelup, location=location.belowbar, color=color.new(color.green, 0), textcolor=color.white, size=size.normal)
+plotshape(sellSignal, title='Sell Signal', text='SELL', style=shape.labeldown, location=location.abovebar, color=color.new(color.red, 0), textcolor=color.white, size=size.normal)
+
+// Add star next to BUY when blue line is below
+buyStar = buySignal and hlv < 0
+plotshape(buyStar, title='Buy Star', text='★', style=shape.labelup, location=location.belowbar, color=color.new(color.green, 0), textcolor=color.white, size=size.small)
+
+// Add symbol next to SELL when red line is above
+sellStar = sellSignal and hlv > 0
+plotshape(sellStar, title='Sell Symbol', text='✦', style=shape.labeldown, location=location.abovebar, color=color.new(color.red, 0), textcolor=color.white, size=size.small)
+
+// ----- اضافه کردن SSL Baseline جدید -----
+
+// تعریف نوع و طول SSL Baseline (می‌توانید این مقادیر را تنظیم کنید)
+sslType = input.string(title='SSL Baseline Type', defval='EMA', options=['SMA', 'EMA', 'HMA', 'WMA', 'DEMA', 'TEMA', 'LSMA', 'TMA', 'Kijun', 'McGinley'])
+sslLength = input.int(title='SSL Baseline Length', defval=55)
+
+// محاسبه SSL High و SSL Low
+sslHigh = ma(sslType, high, sslLength)
+sslLow = ma(sslType, low, sslLength)
+
+// تعریف وضعیت SSL Baseline
+var int hlv_SSL = 0
+hlv_SSL := close > sslHigh ? 1 : close < sslLow ? -1 : hlv_SSL[1]
+
+// محاسبه خط سیگنال SSL Baseline
+sslSignalLine = hlv_SSL < 0 ? sslHigh : sslLow
+
+// ترسیم SSL Baseline روی نمودار
+plot(sslSignalLine, color=color.new(color.blue, 0), linewidth=2, title='SSL Baseline')
+
+// ----- پایان اضافه کردن SSL Baseline جدید -----
+
+// سایر بخش‌های کد شما ادامه دارد...
